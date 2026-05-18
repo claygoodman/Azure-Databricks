@@ -1,0 +1,32 @@
+%sql
+USE CATALOG learningadb;
+USE SCHEMA TiogamDBProjects;
+
+CREATE TABLE IF NOT EXISTS CopyIntoDemo(
+    Date DATE,
+    AccountName STRING,
+    Entity STRING,
+    Category STRING,
+    SubCategory STRING,
+    Amount Double
+);
+
+--Confirm it has no data
+%sql
+SELECT * FROM CopyIntoDemo;
+
+result = spark.sql(f"""
+    COPY INTO CopyIntoDemo
+    FROM '/Volumes/learningadb/tiogamdbprojects/filevol/'
+    FILEFORMAT = CSV
+    FORMAT_OPTIONS('header' = 'true', 'inferSchema' = 'true')
+""")
+result.display()
+
+--Affirm it worked
+%sql
+SELECT * FROM CopyIntoDemo
+
+--after testing it won't reload the same data check history
+%sql
+DESCRIBE HISTORY CopyIntoDemo
