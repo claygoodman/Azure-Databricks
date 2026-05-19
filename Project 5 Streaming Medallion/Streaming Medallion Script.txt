@@ -1,0 +1,40 @@
+
+%sql
+
+CREATE OR REFRESH STREAMING TABLE StreamingBronzeDemo
+COMMENT "Demos creating a streaming bronze structure as a streaming medallion foundation"
+AS SELECT *
+FROM STREAM read_files(
+    '/Volumes/learningadb/tiogamdbprojects/filevol/'.
+    format => 'csv',
+    header => true,
+    inferSchema => true
+);
+
+
+CREATE OR REFRESH MATERIALIZED VIEW StreamingSilverView
+COMMENT "Cleaned and enriched transaction data with data quality expectations."
+AS SELECT
+    TradeDate,
+    Open,
+    High,
+    Low,
+    Close,
+    current_timestamp() AS processed_timestamp,
+    current_date() AS processed_date
+FROM StreamingBronzeDemo;
+
+ 
+
+CREATE OR REFRESH MATERIALIZED VIEW StreamingGoldView
+COMMENT "30-day Moving Average And Daily Delta"
+AS SELECT
+  TradeDate,
+  Open,
+  Close,
+  ROUND(Close - Open,2) AS DailyDelta,
+  ROUND(AVG([Close]) OVER (ORDER BY [Date] ROWS BETWEEN 29 PRECEDING AND CURRENT ROW), 2) AS Moving_Average 
+FROM StreamingSilverView
+
+
+
