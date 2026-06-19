@@ -1,0 +1,132 @@
+USE CATALOG AdjustedCatalogName;
+USE SCHEMA TiogamDBProjects;
+%sql
+LIST '/Volumes/AdjustedCatalogName/tiogamdbprojects/filevol/';
+
+%sql
+USE CATALOG AdjustedCatalogName;
+USE SCHEMA TiogamDBProjects;
+
+CREATE TABLE IF NOT EXISTS BronzeDemo(
+    Date DATE,
+    AccountName STRING,
+    Entity STRING,
+    Category STRING,
+    SubCategory STRING,
+    Amount Double
+);
+
+result = spark.sql("""
+    COPY INTO BronzeDemo
+    FROM '/Volumes/AdjustedCatalogName/tiogamdbprojects/filevol/'
+    FILEFORMAT = CSV
+    FORMAT_OPTIONS ('header' = 'true', 'inferSchema' = 'true')
+""")
+result.display()
+
+%sql
+USE CATALOG AdjustedCatalogName;
+USE SCHEMA TiogamDBProjects;
+
+CREATE OR REPLACE TABLE SilverDemo AS
+SELECT
+   Date,
+    AccountName,
+    Entity,
+    Category,
+    SubCategory,
+    Amount,
+    current_timestamp() AS processed_timestamp,
+    current_date() AS processed_date
+FROM BronzeDemo;
+
+%sql
+SELECT * FROM silverDemo
+--Fix the spelling error in subcategory: From MontlyZeroed to MonthlyZeroed
+
+--SQL Editor Task
+%sql
+USE CATALOG AdjustedCatalogName;
+USE SCHEMA TiogamDBProjects;
+
+UPDATE SilverDemo
+SET SubCategory = 'MonthlyZeroed'
+,processed_timestamp = current_timestamp()
+WHERE SubCategory = 'MontlyZeroed'
+AND AccountName = 'PayOutsAccount'
+AND Entity = 'BigBank'
+
+--PROCESS CHECK; column count
+%sql
+USE CATALOG AdjustedCatalogName;
+USE SCHEMA TiogamDBProjects;
+-validation check
+%sql
+USE CATALOG AdjustedCatalogName;
+USE SCHEMA TiogamDBProjects;
+SELECT COUNT(*) FROM BronzeDemo
+UNION ALL
+SELECT COUNT(*) FROM silverdemo
+
+
+#--BUILD GOLD LAYER NOTE: THIS FIRST VIEW IS NOT GOLD; IT is an intermediate between silver and gold
+%sql
+
+USE CATALOG AdjustedCatalogName;
+USE SCHEMA TiogamDBProjects;
+
+CREATE OR REPLACE TEMP VIEW Temp_Payouts AS
+SELECT
+    AccountName,
+    SUM(Amount) As TotalOut
+FROM SilverDemo
+WHERE AccountName = 'PayOutsAccount'
+GROUP BY AccountName;
+
+%sql
+SELECT * FROM Temp_Payouts;
+
+%sql
+USE CATALOG AdjustedCatalogName;
+USE SCHEMA TiogamDBProjects;
+
+CREATE OR REPLACE TEMP VIEW Temp_Income AS
+SELECT 
+    AccountName,
+    SUM(Amount) AS TotalIn
+FROM SilverDemo
+WHERE AccountName = 'IncomeAccount'
+GROUP BY AccountName;
+
+%sql
+USE CATALOG AdjustedCatalogName;
+USE SCHEMA TiogamDBProjects;
+
+CREATE TABLE IF NOT EXISTS AccountsGold(
+    AccountName STRING,
+    TotalAmount DOUBLE
+    );
+
+%sql
+USE CATALOG AdjustedCatalogName;
+USE SCHEMA TiogamDBProjects;
+
+INSERT OVERWRITE AccountsGold
+SELECT * FROM Temp_Payouts
+
+%sql
+USE CATALOG AdjustedCatalogName;
+USE SCHEMA TiogamDBProjects;
+
+INSERT INTO AccountsGold
+SELECT * FROM Temp_Income
+
+
+--VALIDATE WORK
+%sql
+USE CATALOG AdjustedCatalogName;
+USE SCHEMA TiogamDBProjects;
+
+SELECT * FROM AccountsGold
+
+

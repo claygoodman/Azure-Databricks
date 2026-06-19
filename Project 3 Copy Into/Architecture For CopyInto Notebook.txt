@@ -1,0 +1,7 @@
+Copy Into for incremental loading
+This project is very useful for capturing all files in a directory into a table as a first step
+Later steps require INSERT INTO using a new file/files.
+
+1) create the destination table
+2) Run python code to automate spark sql and run "copy into" to capture all files in the source directory.
+this assumes all have the same format.

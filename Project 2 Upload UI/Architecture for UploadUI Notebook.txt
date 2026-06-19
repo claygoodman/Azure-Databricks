@@ -1,0 +1,8 @@
+Peforming an Upload UI process is pure drag and drop:
+Choose:
+New/add new or upload data
+Choose a file
+Add a table name. For this project the table is UploadUI
+Click "Create Table"
+
+Negative Factor: Using Upload UI appears to only create tables on the default schema. As such it fails to comply with best practices of using unique schemas for different notebook elements.
